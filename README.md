@@ -43,6 +43,14 @@ for manual use only). Instead the VM deploys itself:
   `main`, and only when there is something new to run does it rebuild the image,
   restart the container (`--restart=always`) and wait for `/health` on
   `127.0.0.1:10000` before reporting success.
+- The image itself is **built by GitHub Actions** (`.github/workflows/image.yml`)
+  and published to `ghcr.io/vishalkumar-acad/pixelabs-api`. The deploy script
+  pulls that image, and only falls back to building locally when the pull
+  fails. This matters: building here means running
+  `apt-get install ghostscript ffmpeg` (~200 packages) inside Docker on an
+  887 MB VM — slow, and it can be killed halfway through. After the first
+  workflow run, set the package to **Public** (Packages → pixelabs-api →
+  Package settings → Change visibility) so the VM can pull it without a token.
 - "Already deployed" is tracked in `/var/lib/pixelabs-deploy/deployed` (the SHA
   recorded after a *successful* deploy) — **not** the working tree's HEAD. A
   manual `git pull` on the box used to advance HEAD and make the script believe

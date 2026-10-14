@@ -1,0 +1,56 @@
+name: Build the API image
+
+# The VM this deploys to is IPv6-only and small (887 MB RAM), so building the
+# image there means running `apt-get install ghostscript ffmpeg` (~200
+# packages) inside Docker — slow, and it can be killed halfway through.
+# GitHub's runners do that work instead and publish the result to the
+# container registry, so the VM only has to pull it (seconds). See
+# scripts/pull-deploy.sh, which falls back to a local build if the pull ever
+# fails.
+#
+# One-time step after the first run: open Packages -> pixelabs-api ->
+# Package settings -> Change visibility -> Public, so the VM can pull it
+# without needing a token.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "Dockerfile"
+      - "app.py"
+      - "requirements*.txt"
+      - ".github/workflows/image.yml"
+  workflow_dispatch: {}
+
+concurrency:
+  group: build-api-image
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Log in to the container registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ghcr.io/vishalkumar-acad/pixelabs-api:latest
+            ghcr.io/vishalkumar-acad/pixelabs-api:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

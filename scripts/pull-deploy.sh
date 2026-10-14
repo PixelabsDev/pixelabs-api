@@ -61,7 +61,20 @@ log "deploying ${REMOTE:0:7} (running: ${DEPLOYED:0:7})"
 as_user reset --hard "$REMOTE"
 
 cd "$APP_DIR"
-docker build -t pixelabs-api .
+
+# Prefer the image GitHub Actions already built. Building it here means
+# running `apt-get install ghostscript ffmpeg` (~200 packages) inside Docker
+# on an 887 MB VM: slow, and it can be killed halfway through. Pull it when
+# we can, and fall back to building locally when the pull does not work —
+# this VM is IPv6-only, so a registry without IPv6 would fail here.
+IMAGE="ghcr.io/vishalkumar-acad/pixelabs-api:latest"
+if docker pull "$IMAGE" >/dev/null 2>&1; then
+  log "using the prebuilt image (ghcr.io)"
+  docker tag "$IMAGE" pixelabs-api
+else
+  log "prebuilt image unavailable — building locally (this takes several minutes)"
+  docker build -t pixelabs-api .
+fi
 docker rm -f api >/dev/null 2>&1 || true
 docker run -d --name api --restart=always \
   -p 127.0.0.1:10000:10000 -e PORT=10000 -e GIT_SHA="$REMOTE" pixelabs-api >/dev/null
