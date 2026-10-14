@@ -7,6 +7,7 @@ import subprocess
 import tempfile
 import time
 import zipfile
+from datetime import datetime, timezone
 
 from fastapi import Depends, FastAPI, File, Form, HTTPException, UploadFile, Response
 from fastapi.middleware.cors import CORSMiddleware
@@ -491,6 +492,25 @@ def _subtype_of(annot):
         return ""
 
 
+# Provenance marker for the cleaned file. Every PDF tool stamps its own name
+# in /Producer (pypdf writes "pypdf", Ghostscript writes its own), so this
+# puts ours there instead, together with where the work happened. It is
+# ordinary metadata - any metadata remover strips it again.
+CREATOR = "PixelAbs Tools"
+PRODUCER_CLOUD = "PixelAbs Tools - PDF Link Remover (cloud)"
+
+
+def _stamp(writer, producer):
+    try:
+        writer.add_metadata({
+            "/Creator": CREATOR,
+            "/Producer": producer,
+            "/ModDate": datetime.now(timezone.utc).strftime("D:%Y%m%d%H%M%SZ"),
+        })
+    except Exception:
+        pass
+
+
 @app.post("/pdf/remove-annotations", dependencies=[Depends(heavy_slot)])
 async def remove_annotations(
     file: UploadFile = File(...),
@@ -567,6 +587,7 @@ async def remove_annotations(
             )
     except Exception:
         pass
+    _stamp(writer, PRODUCER_CLOUD)
 
     buf = io.BytesIO()
     writer.write(buf)

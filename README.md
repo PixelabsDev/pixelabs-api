@@ -122,7 +122,10 @@ journalctl -u pixelabs-deploy -n 20              # see what it did
   Only annotation objects are touched; the page content stream is never
   rewritten, so text, fonts, vector art and images stay exactly as they were
   and the layout cannot shift. Headers: `X-Removed`, `X-Pages-Affected`.
-  Metadata (title/author) is carried over.
+  Metadata (title/author) is carried over, and a provenance marker is
+  written into `/Producer` and `/Creator` — `PixelAbs Tools - PDF Link
+  Remover (cloud)`. It is ordinary metadata, so a metadata remover
+  strips it again.
 - `POST /audio/trim`, `POST /audio/speed`, `POST /audio/join` — ffmpeg (MP3).
 - `POST /video/gif` — video to GIF (ffmpeg).
 
