@@ -65,7 +65,13 @@ docker build -t pixelabs-api .
 docker rm -f api >/dev/null 2>&1 || true
 docker run -d --name api --restart=always \
   -p 127.0.0.1:10000:10000 -e PORT=10000 -e GIT_SHA="$REMOTE" pixelabs-api >/dev/null
-docker image prune -f >/dev/null
+
+# NOTE: deliberately no `docker image prune` here. Pruning dangling images
+# also throws away the build cache, so the next `docker build` redoes the
+# whole image from scratch — including `apt-get install ghostscript ffmpeg`,
+# which pulls in ~200 packages and takes 5-10 minutes on this box. The disk
+# is nowhere near full, so the cache is worth far more than the space.
+# Each deploy now only adds the layer that actually changed (app.py).
 
 for _ in $(seq 1 15); do
   if curl -fsS "$HEALTH_URL" >/dev/null 2>&1; then
