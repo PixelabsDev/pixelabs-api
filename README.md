@@ -44,7 +44,7 @@ for manual use only). Instead the VM deploys itself:
   restart the container (`--restart=always`) and wait for `/health` on
   `127.0.0.1:10000` before reporting success.
 - The image itself is **built by GitHub Actions** (`.github/workflows/image.yml`)
-  and published to `ghcr.io/vishalkumar-acad/pixelabs-api`. The deploy script
+  and published to `ghcr.io/pixelabsdev/pixelabs-api`. The deploy script
   pulls that image, and only falls back to building locally when the pull
   fails. This matters: building here means running
   `apt-get install ghostscript ffmpeg` (~200 packages) inside Docker on an

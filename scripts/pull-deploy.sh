@@ -21,7 +21,7 @@
 set -euo pipefail
 
 APP_DIR="/home/azureuser/pixelabs-api"
-REPO="https://github.com/Vishalkumar-acad/pixelabs-api.git"
+REPO="https://github.com/PixelabsDev/pixelabs-api.git"
 BRANCH="main"
 APP_USER="azureuser"
 HEALTH_URL="http://127.0.0.1:10000/health"
@@ -67,7 +67,7 @@ cd "$APP_DIR"
 # on an 887 MB VM: slow, and it can be killed halfway through. Pull it when
 # we can, and fall back to building locally when the pull does not work —
 # this VM is IPv6-only, so a registry without IPv6 would fail here.
-IMAGE="ghcr.io/vishalkumar-acad/pixelabs-api:latest"
+IMAGE="ghcr.io/pixelabsdev/pixelabs-api:latest"
 if docker pull "$IMAGE" >/dev/null 2>&1; then
   log "using the prebuilt image (ghcr.io)"
   docker tag "$IMAGE" pixelabs-api

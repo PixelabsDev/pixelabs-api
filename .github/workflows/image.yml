@@ -50,7 +50,7 @@ jobs:
           context: .
           push: true
           tags: |
-            ghcr.io/vishalkumar-acad/pixelabs-api:latest
-            ghcr.io/vishalkumar-acad/pixelabs-api:${{ github.sha }}
+            ghcr.io/pixelabsdev/pixelabs-api:latest
+            ghcr.io/pixelabsdev/pixelabs-api:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
