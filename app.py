@@ -62,6 +62,7 @@ app.add_middleware(
     expose_headers=[
         "X-Original-Size", "X-Result-Size", "X-Kept",
         "X-Format", "X-Page-Count", "X-Heic", "X-Resized",
+        "X-Removed", "X-Pages-Affected",
     ],
 )
 
@@ -457,6 +458,126 @@ async def split_pdf(file: UploadFile = File(...), pages: str = Form("all")):
         content=out_bytes,
         media_type="application/pdf",
         headers=hdr(len(data), out_bytes, False, {"X-Page-Count": str(len(idx))}),
+    )
+
+
+# ---------------- PDF: strip links / annotations ----------------
+
+def _annots_of(page):
+    """Return the page's live /Annots array object, or None.
+
+    The entry is often an indirect reference, so it has to be resolved
+    before it can be read or edited."""
+    try:
+        if "/Annots" not in page:
+            return None
+        annots = page["/Annots"]
+        if annots is None:
+            return None
+        return annots.get_object()
+    except Exception:
+        return None
+
+
+def _subtype_of(annot):
+    """'/Link', '/Text', '/Highlight' … for one annotation object."""
+    try:
+        obj = annot.get_object()
+    except Exception:
+        obj = annot
+    try:
+        return str(obj.get("/Subtype", "") or "")
+    except Exception:
+        return ""
+
+
+@app.post("/pdf/remove-annotations", dependencies=[Depends(heavy_slot)])
+async def remove_annotations(
+    file: UploadFile = File(...),
+    mode: str = Form("links"),
+):
+    """Strip hyperlinks — or every annotation — from a PDF, page by page.
+
+    mode="links" removes only annotation objects whose /Subtype is /Link:
+    the clickable web links and file-launch actions, which are the ones that
+    can send a reader somewhere unexpected.
+
+    mode="all" removes the whole /Annots array from every page: links,
+    comments, highlights, stamps, sticky notes and form widgets.
+
+    The page content stream is never touched, so text, fonts, vector art and
+    images stay byte-for-byte as they were — nothing is rasterised, and the
+    layout cannot shift. Document metadata is carried over too.
+    """
+    if mode not in ("links", "all"):
+        raise HTTPException(400, "mode must be 'links' or 'all'")
+
+    data = await file.read()
+    check_file(file, data)
+    try:
+        reader = PdfReader(io.BytesIO(data))
+    except Exception:
+        raise HTTPException(400, "invalid PDF")
+
+    removed = 0
+    pages_affected = 0
+
+    for page in reader.pages:
+        annots = _annots_of(page)
+        if annots is None:
+            continue
+        try:
+            total = len(annots)
+        except Exception:
+            continue
+        if not total:
+            continue
+
+        if mode == "all":
+            gone = total
+        else:
+            gone = sum(1 for a in annots if _subtype_of(a) == "/Link")
+
+        if not gone:
+            continue
+
+        removed += gone
+        pages_affected += 1
+        if mode == "all" or gone == total:
+            # Nothing left worth keeping — drop the key entirely.
+            try:
+                del page["/Annots"]
+            except Exception:
+                pass
+        else:
+            try:
+                keep = [a for a in annots if _subtype_of(a) != "/Link"]
+                annots.clear()
+                annots.extend(keep)
+            except Exception:
+                pass
+
+    writer = PdfWriter()
+    for page in reader.pages:
+        writer.add_page(page)
+    try:
+        if reader.metadata:
+            writer.add_metadata(
+                {k: str(v) for k, v in reader.metadata.items() if v is not None}
+            )
+    except Exception:
+        pass
+
+    buf = io.BytesIO()
+    writer.write(buf)
+    out_bytes = buf.getvalue()
+    return Response(
+        content=out_bytes,
+        media_type="application/pdf",
+        headers=hdr(len(data), out_bytes, False, {
+            "X-Removed": str(removed),
+            "X-Pages-Affected": str(pages_affected),
+        }),
     )
 
 

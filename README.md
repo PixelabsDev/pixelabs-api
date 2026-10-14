@@ -116,6 +116,13 @@ journalctl -u pixelabs-deploy -n 20              # see what it did
   `pages` (`all` or `1-3,5`). Renders each page with Ghostscript and returns a
   ZIP of images; the upload and the ZIP both go via disk, so it never holds a
   big PDF in memory.
+- `POST /pdf/remove-annotations` — form: `file`, `mode` (`links` or `all`).
+  Strips the clickable hyperlinks (`/Link` annotation objects) — or, with
+  `mode=all`, every annotation: comments, highlights, stamps, form widgets.
+  Only annotation objects are touched; the page content stream is never
+  rewritten, so text, fonts, vector art and images stay exactly as they were
+  and the layout cannot shift. Headers: `X-Removed`, `X-Pages-Affected`.
+  Metadata (title/author) is carried over.
 - `POST /audio/trim`, `POST /audio/speed`, `POST /audio/join` — ffmpeg (MP3).
 - `POST /video/gif` — video to GIF (ffmpeg).
 
